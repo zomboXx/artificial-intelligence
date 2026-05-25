@@ -54,5 +54,7 @@ Các phương pháp tìm kiếm lời giải xấp xỉ tối ưu cho các bài 
 ## 🛠️ Trạng thái thực hành hiện tại
 - **Buổi 4**: Đã hoàn thành giải bài toán **Vacuum Agent** (Robot hút bụi thông minh) theo 2 hướng simple reflex và model-based agent.
 - **Buổi 5**: Đã hoàn thành giải bài toán **8-Puzzle** sử dụng thuật toán **BFS** và **DFS** kèm giao diện mô phỏng thời gian thực bằng **Tkinter** dưới dạng Incremental Search.
+- **Buổi 6**: Đã hoàn thành giải bài toán **8-Puzzle** sử dụng thuật toán **IDS (Iterative Deepening Search - Tìm kiếm sâu dần)** với thứ tự ưu tiên duyệt **LRUD** và trực quan hóa thời gian thực (Real-time).
 
 *Repository đang liên tục được cập nhật theo tiến độ học tập trên lớp.*
+
