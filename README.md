@@ -20,7 +20,7 @@ Học phần Nhập môn / Cơ sở Trí Tuệ Nhân Tạo thường trang bị 
   - *Bài toán ứng dụng*: **8-Puzzle** (Trò chơi trượt số), Đong nước (Water Jug), Mê cung (Maze Solving).
 - **Tìm kiếm có thông tin / Heuristic (Informed Search)**: Sử dụng hàm đánh giá Heuristic để tối ưu hướng đi.
   - *Thuật toán*: Greedy Best-First Search, Giải thuật tìm kiếm A*.
-  - *Bài toán ứng dụng*: Tìm đường đi ngắn nhất trên bản đồ (Pathfinding), 8-Puzzle tối ưu (A* dùng Manhattan/Misplaced Tiles).
+  - *Bài toán ứng dụng*: Tìm đường đi ngắn nhất trên bản đồ (Pathfinding), 8-Puzzle tối ưu (dùng Heuristic khoảng cách Manhattan).
 
 ### 2. Tìm kiếm đối kháng (Adversarial Search)
 Ứng dụng trong việc xây dựng các Agent tự động chơi game chiến thuật 2 người.
@@ -55,6 +55,7 @@ Các phương pháp tìm kiếm lời giải xấp xỉ tối ưu cho các bài 
 - **Buổi 4**: Đã hoàn thành giải bài toán **Vacuum Agent** (Robot hút bụi thông minh) theo 2 hướng simple reflex và model-based agent.
 - **Buổi 5**: Đã hoàn thành giải bài toán **8-Puzzle** sử dụng thuật toán **BFS** và **DFS** kèm giao diện mô phỏng thời gian thực bằng **Tkinter** dưới dạng Incremental Search.
 - **Buổi 6**: Đã hoàn thành giải bài toán **8-Puzzle** sử dụng thuật toán **IDS (Iterative Deepening Search - Tìm kiếm sâu dần)** với thứ tự ưu tiên duyệt **LRUD** và trực quan hóa thời gian thực (Real-time).
+- **Buổi 7**: Đã hoàn thành giải bài toán **8-Puzzle** sử dụng giải thuật **UCS (Uniform Cost Search)** chuẩn hóa chi phí đường đi thực tế $f(n) = g(n)$. Để phân biệt bản chất với BFS, trọng số của mỗi bước đi (Step Cost) được cấu hình tùy biến bằng *giá trị của ô số vừa được hoán đổi*, giúp kiểm chứng trực quan cơ chế sắp xếp Frontier của hàng đợi ưu tiên.
+- **Buổi 8**: Đã hoàn thành tích hợp bộ đôi thuật toán tìm kiếm có thông tin (Informed Search) gồm **Greedy Best-First Search** ($f(n) = h(n)$) và **A\* Search** ($f(n) = g(n) + h(n)$) sử dụng hàm Heuristic Khoảng cách Manhattan. Chương trình được tối ưu hóa với thanh lựa chọn **Dropdown Combobox** trên giao diện Tkinter, cho phép người dùng chuyển đổi linh hoạt giữa hai thuật toán để so sánh sự khác biệt trong việc đánh giá và tối ưu hóa chi phí.
 
 *Repository đang liên tục được cập nhật theo tiến độ học tập trên lớp.*
-
