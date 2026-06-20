@@ -109,7 +109,7 @@ def _render_problem_options(spec):
     options = dict(spec.default_options)
 
     if spec.key == "puzzle8":
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             options["shuffle"] = st.checkbox(
                 "Random solvable start state",
@@ -122,6 +122,15 @@ def _render_problem_options(spec):
                 value=options["weighted_cost"],
                 key=f"{SESSION_PREFIX}_puzzle_weighted",
             )
+        with col3:
+            heuristic_label = st.selectbox(
+                "Heuristic",
+                options=["manhattan", "misplaced"],
+                format_func=lambda value: "Manhattan Distance" if value == "manhattan" else "Misplaced Tiles",
+                index=0 if options.get("heuristic") == "manhattan" else 1,
+                key=f"{SESSION_PREFIX}_puzzle_heuristic",
+            )
+            options["heuristic"] = heuristic_label
     elif spec.key == "queens8":
         options["size"] = st.slider(
             "Board size",
@@ -195,12 +204,65 @@ def _render_status(step):
         f"Frontier: {metrics.get('frontier_size', 0)}",
         f"Depth: {metrics.get('depth', 0)}",
     ]
-    if metrics.get("algorithm") in ("UCS", "Greedy", "A*"):
+    if metrics.get("algorithm") in (
+        "UCS", "Greedy", "A*", "IDA*", "Simple HC", "Steepest HC", "Stochastic HC",
+        "Sideways HC", "Random Restart HC", "Local Beam Better", "Local Beam Best",
+        "Simulated Annealing", "Sensorless Search", "Partial Observation",
+        "AND-OR Graph", "Belief State Demo",
+    ):
         fields.append(f"g={metrics.get('g', 0)}")
         fields.append(f"h={metrics.get('h', 0)}")
         fields.append(f"f={metrics.get('f', 0)}")
     if "limit" in metrics:
         fields.append(f"Limit: {metrics['limit']}")
+    if "threshold" in metrics:
+        fields.append(f"Threshold: {metrics['threshold']}")
+    if "candidate_count" in metrics:
+        fields.append(f"Candidates: {metrics['candidate_count']}")
+    if "sideways" in metrics and metrics.get("sideways_limit") is not None:
+        fields.append(f"Sideways: {metrics['sideways']}/{metrics['sideways_limit']}")
+    if "restart" in metrics:
+        fields.append(f"Restart: {metrics['restart']}")
+    if "beam_size" in metrics:
+        fields.append(f"Beam: {metrics['beam_size']}/{metrics.get('beam_width', '-')}")
+    if "best_h" in metrics:
+        fields.append(f"Best h={metrics['best_h']}")
+    if "temperature" in metrics:
+        fields.append(f"T={metrics['temperature']}")
+    if "delta" in metrics:
+        fields.append(f"Delta={metrics['delta']}")
+    if "probability" in metrics:
+        fields.append(f"p={metrics['probability']}")
+    if metrics.get("roll") is not None:
+        fields.append(f"roll={metrics['roll']}")
+    if "accepted" in metrics:
+        fields.append("Accepted" if metrics["accepted"] else "Rejected")
+    if "belief_size" in metrics:
+        fields.append(f"BS={metrics['belief_size']}")
+    if "belief_theory" in metrics:
+        fields.append(f"BS theory={metrics['belief_theory']}")
+    if "known_tiles" in metrics:
+        fields.append(f"Known={metrics['known_tiles']}")
+    if "belief_after" in metrics:
+        fields.append(f"BS after={metrics['belief_after']}")
+    if "revealed_tile" in metrics:
+        fields.append(f"Reveal tile={metrics['revealed_tile']}")
+    if "chosen_action" in metrics:
+        fields.append(f"Action={metrics['chosen_action']}")
+    if "belief_avg_h" in metrics:
+        fields.append(f"avg h={metrics['belief_avg_h']}")
+    if "knowledge_model" in metrics:
+        fields.append(metrics["knowledge_model"])
+    if "and_outcomes" in metrics:
+        fields.append(f"AND outcomes={metrics['and_outcomes']}")
+    if "worst_h" in metrics:
+        fields.append(f"worst h={metrics['worst_h']}")
+    if "plan_found" in metrics:
+        fields.append("Conditional plan: found" if metrics["plan_found"] else "Conditional plan: depth-limited")
+    if metrics.get("stuck"):
+        fields.append("Stuck: local optimum / plateau")
+    if step.message:
+        fields.append(step.message)
 
     if step.path:
         fields.append(f"Path length: {len(step.path) - 1}")
@@ -225,8 +287,8 @@ def _render_problem_surface(spec, problem, step):
         "frontier": step.frontier,
         "explored": step.explored,
         "path": step.path,
-        "start": problem.initial_state(),
-        "goal": getattr(problem, "goal", getattr(problem, "goal_state", None)),
+        "start": step.metrics.get("display_start", problem.initial_state()),
+        "goal": step.metrics.get("display_goal", getattr(problem, "goal", getattr(problem, "goal_state", None))),
     }
     if spec.key == "pathfinding":
         kwargs["grid"] = problem.grid

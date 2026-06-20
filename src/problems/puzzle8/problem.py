@@ -19,15 +19,17 @@ MOVES = (
 class Puzzle8Problem:
     name = "8-Puzzle"
 
-    def __init__(self, start_state=DEFAULT_START_STATE, goal_state=GOAL_STATE, weighted_cost=False):
+    def __init__(
+        self,
+        start_state=DEFAULT_START_STATE,
+        goal_state=GOAL_STATE,
+        weighted_cost=False,
+        heuristic_name="manhattan",
+    ):
         self.start_state = start_state
         self.goal_state = goal_state
         self.weighted_cost = weighted_cost
-        self.goal_positions = {
-            value: (r, c)
-            for r, row in enumerate(goal_state)
-            for c, value in enumerate(row)
-        }
+        self.heuristic_name = heuristic_name
 
     def initial_state(self):
         return self.start_state
@@ -60,17 +62,65 @@ class Puzzle8Problem:
         return state[next_blank_r][next_blank_c] or state[blank_r][blank_c]
 
     def heuristic(self, state) -> float:
-        total = 0
-        for r, row in enumerate(state):
-            for c, value in enumerate(row):
-                if value == 0:
-                    continue
-                gr, gc = self.goal_positions[value]
-                total += abs(r - gr) + abs(c - gc)
-        return total
+        if self.heuristic_name == "misplaced":
+            return misplaced_tiles(state, self.goal_state)
+        return manhattan_distance(state, self.goal_state)
 
     def state_key(self, state):
         return state
+
+    def local_initial_state(self):
+        return self.start_state
+
+    def local_is_goal(self, state) -> bool:
+        return self.is_goal(state)
+
+    def local_heuristic(self, state) -> float:
+        return self.heuristic(state)
+
+    def local_neighbors(self, state):
+        return [(action, self.result(state, action)) for action in self.actions(state)]
+
+    def local_random_state(self, restart_index: int = 0):
+        return random_puzzle_state(self.goal_state, scramble_steps=18 + restart_index % 12)
+
+
+def manhattan_distance(state, goal_state=GOAL_STATE) -> float:
+    goal_positions = {
+        value: (r, c)
+        for r, row in enumerate(goal_state)
+        for c, value in enumerate(row)
+    }
+    total = 0
+    for r, row in enumerate(state):
+        for c, value in enumerate(row):
+            if value == 0:
+                continue
+            gr, gc = goal_positions[value]
+            total += abs(r - gr) + abs(c - gc)
+    return total
+
+
+def misplaced_tiles(state, goal_state=GOAL_STATE) -> int:
+    wrong = 0
+    for r, row in enumerate(state):
+        for c, value in enumerate(row):
+            if value != 0 and value != goal_state[r][c]:
+                wrong += 1
+    return wrong
+
+
+def random_puzzle_state(goal_state=GOAL_STATE, scramble_steps=25):
+    state = goal_state
+    previous = None
+    for _ in range(scramble_steps):
+        choices = []
+        for next_state in _neighbor_states(state):
+            if next_state != previous or not choices:
+                choices.append(next_state)
+        previous = state
+        state = random.choice(choices)
+    return state
 
 
 def generate_solvable_shuffle() -> tuple[tuple[int, ...], ...]:
@@ -89,6 +139,16 @@ def generate_solvable_shuffle() -> tuple[tuple[int, ...], ...]:
 def is_solvable(state) -> bool:
     flat = [value for row in state for value in row]
     return _count_inversions(flat) % 2 == 1
+
+
+def _neighbor_states(state):
+    blank_r, blank_c = _find_blank(state)
+    for _, dr, dc in MOVES:
+        nr, nc = blank_r + dr, blank_c + dc
+        if 0 <= nr < 3 and 0 <= nc < 3:
+            grid = [list(row) for row in state]
+            grid[blank_r][blank_c], grid[nr][nc] = grid[nr][nc], grid[blank_r][blank_c]
+            yield tuple(tuple(row) for row in grid)
 
 
 def _count_inversions(flat: list[int]) -> int:

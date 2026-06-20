@@ -12,7 +12,7 @@ if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
 from styles.theme import COLORS, apply_global_styles
-from views import search_view, vacuum_view
+from views import adversarial_view, csp_view, search_view, vacuum_view
 
 
 st.set_page_config(
@@ -27,6 +27,8 @@ apply_global_styles()
 PAGES = {
     "Search Algorithms": "search",
     "Vacuum Agent": "vacuum",
+    "CSP Lab": "csp",
+    "Adversarial Search": "adversarial",
 }
 
 with st.sidebar:
@@ -57,7 +59,8 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    if PAGES[selected_page] == "search":
+    page_key = PAGES[selected_page]
+    if page_key == "search":
         st.html("""
 <div style="
     background-color: var(--neo-panel);
@@ -66,14 +69,18 @@ with st.sidebar:
 ">
     <b>Generic Search Core</b><br>
     - BFS, DFS, IDS<br>
-    - UCS, Greedy, A*<br><br>
+    - UCS, Greedy, A*, IDA*<br>
+    - Hill Climbing, Local Beam<br>
+    - Simulated Annealing<br>
+    - Sensorless, Partial Observation<br>
+    - AND-OR Graph Search<br><br>
     <b>Problems</b><br>
     - 8-Puzzle<br>
     - Grid Pathfinding<br>
     - 8-Queens
 </div>
 """)
-    else:
+    elif page_key == "vacuum":
         st.html("""
 <div style="
     background-color: var(--neo-panel);
@@ -82,8 +89,31 @@ with st.sidebar:
 ">
     <b>Agent Simulation</b><br>
     - Simple Reflex<br>
-    - Model-Based<br><br>
+    - Model-Based Vacuum Agent<br><br>
     4x4 random room environment
+</div>
+""")
+    elif page_key == "csp":
+        st.html("""
+<div style="background-color:var(--neo-panel);border:2px solid var(--neo-border);padding:0.8rem;font-size:0.85rem;color:var(--neo-text);">
+    <b>Constraint Satisfaction</b><br>
+    - Backtracking<br>
+    - Forward Checking<br>
+    - AC-3 + Backtracking<br>
+    - Min-Conflicts<br><br>
+    <b>Problems</b><br>
+    - Map Coloring<br>
+    - 8-Puzzle as CSP
+</div>
+""")
+    else:
+        st.html("""
+<div style="background-color:var(--neo-panel);border:2px solid var(--neo-border);padding:0.8rem;font-size:0.85rem;color:var(--neo-text);">
+    <b>Adversarial Search</b><br>
+    - Minimax<br>
+    - Alpha-Beta Pruning<br>
+    - Expectimax<br><br>
+    Step-by-step Tic-Tac-Toe recursion debugger
 </div>
 """)
 
@@ -102,3 +132,7 @@ if page_key == "search":
     search_view.render(BASE_DIR)
 elif page_key == "vacuum":
     vacuum_view.render(BASE_DIR)
+elif page_key == "csp":
+    csp_view.render(BASE_DIR)
+elif page_key == "adversarial":
+    adversarial_view.render(BASE_DIR)

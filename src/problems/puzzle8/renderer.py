@@ -23,7 +23,9 @@ def render_state(state, role: str = "normal") -> str:
     for row in state:
         cells = ""
         for value in row:
-            bg = COLORS["tile_blank"] if value == 0 else COLORS["tile_bg"]
+            is_unknown = value == "?"
+            bg = "#FFF59D" if is_unknown else (COLORS["tile_blank"] if value == 0 else COLORS["tile_bg"])
+            label = "?" if is_unknown else ("" if value == 0 else value)
             cells += f"""
             <div style="
                 width:54px; height:54px;
@@ -34,7 +36,7 @@ def render_state(state, role: str = "normal") -> str:
                 font-size:1.35rem; font-weight:900;
                 color:var(--neo-text);
                 margin:3px;
-            ">{'' if value == 0 else value}</div>
+            ">{label}</div>
             """
         rows += f'<div style="display:flex;">{cells}</div>'
 

@@ -21,6 +21,89 @@ def astar(problem: SearchProblem):
     return _priority_search(problem, "A*", lambda node: node.g + node.h)
 
 
+def ida_star(problem: SearchProblem):
+    start_state = problem.initial_state()
+    start_h = problem.heuristic(start_state)
+    threshold = start_h
+    expanded = 0
+    generated = 0
+    order = 0
+
+    while True:
+        start = SearchNode(
+            state=start_state,
+            g=0,
+            h=start_h,
+            f=start_h,
+            order=order,
+        )
+        order += 1
+        stack = [(start, {problem.state_key(start.state)})]
+        next_threshold = float("inf")
+
+        while stack:
+            node, path_keys = stack.pop()
+            frontier_nodes = [item[0] for item in stack]
+
+            yield make_step(
+                node,
+                frontier_nodes,
+                [],
+                expanded,
+                generated,
+                "IDA*",
+                extra={"threshold": threshold},
+                message=f"Current threshold: {threshold}",
+            )
+
+            if node.f > threshold:
+                next_threshold = min(next_threshold, node.f)
+                continue
+
+            if problem.is_goal(node.state):
+                yield goal_step(
+                    node,
+                    frontier_nodes,
+                    [],
+                    expanded,
+                    generated,
+                    "IDA*",
+                    extra={"threshold": threshold},
+                )
+                return
+
+            expanded += 1
+            children = []
+            for action in problem.actions(node.state):
+                child_state = problem.result(node.state, action)
+                child_key = problem.state_key(child_state)
+                if child_key in path_keys:
+                    continue
+
+                child_g = node.g + problem.step_cost(node.state, action, child_state)
+                child_h = problem.heuristic(child_state)
+                child = SearchNode(
+                    state=child_state,
+                    parent=node,
+                    action=action,
+                    g=child_g,
+                    h=child_h,
+                    f=child_g + child_h,
+                    depth=node.depth + 1,
+                    order=order,
+                )
+                order += 1
+                generated += 1
+                children.append((child, path_keys | {child_key}))
+
+            children.sort(key=lambda item: item[0].f, reverse=True)
+            stack.extend(children)
+
+        if next_threshold == float("inf"):
+            return
+        threshold = next_threshold
+
+
 def _priority_search(problem: SearchProblem, algorithm: str, priority_fn):
     start_h = problem.heuristic(problem.initial_state())
     start = SearchNode(problem.initial_state(), g=0, h=start_h, f=0, order=0)

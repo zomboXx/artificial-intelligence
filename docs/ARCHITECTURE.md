@@ -23,6 +23,12 @@ src/main.py
 
   -> views/vacuum_view.py
       -> core/vacuum_logic.py
+
+  -> views/csp_view.py
+      -> csp/core.py
+
+  -> views/adversarial_view.py
+      -> adversarial/core.py
 ```
 
 ## Generic Search Core
@@ -32,7 +38,8 @@ The search engine lives in `src/search`.
 - `search/problem.py`: common `SearchProblem` protocol.
 - `search/types.py`: `SearchNode`, `SearchStep`, path reconstruction.
 - `search/algorithms/uninformed.py`: BFS, DFS, IDS.
-- `search/algorithms/informed.py`: UCS, Greedy Best-First Search, A*.
+- `search/algorithms/informed.py`: UCS, Greedy Best-First Search, A*, IDA*.
+- `search/algorithms/local.py`: Hill Climbing variants, Local Beam Search, Simulated Annealing, belief-state search and AND-OR search.
 
 All algorithms consume the same problem interface:
 
@@ -82,6 +89,28 @@ src/views/vacuum_view.py
 src/core/vacuum_logic.py
 src/components/vacuum_grid.py
 ```
+
+## CSP Lab
+
+The Buoi 13 module uses a dedicated trace contract because CSP inference exposes assignments and domains rather than a graph-search frontier.
+
+```text
+src/csp/core.py
+src/views/csp_view.py
+```
+
+It includes Backtracking, Forward Checking, AC-3 propagation and Min-Conflicts for Map Coloring and 8-Puzzle-as-CSP.
+
+## Adversarial Search
+
+The Buoi 14 module keeps game-tree recursion events separate from generic graph-search steps.
+
+```text
+src/adversarial/core.py
+src/views/adversarial_view.py
+```
+
+The debugger records `ENTER`, `DESCEND`, `LEAF`, `UPDATE`, `PRUNE` and `RETURN` events for Minimax, Alpha-Beta and Expectimax.
 
 ## Notebook Role
 

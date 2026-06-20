@@ -27,7 +27,7 @@ def render_board_with_trace(current, frontier, explored, path, start, goal, size
     for r in range(size):
         cells = ""
         for c in range(size):
-            has_queen = r < len(state) and state[r] == c
+            has_queen = c < len(state) and state[c] == r
             bg = "#FFFFFF" if (r + c) % 2 == 0 else "#F4F0E6"
             text = ""
             color = COLORS["text"]

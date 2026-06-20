@@ -26,7 +26,12 @@ class ProblemSpec:
 
 def _puzzle_factory(options: dict):
     start = generate_solvable_shuffle() if options.get("shuffle") else DEFAULT_START_STATE
-    return Puzzle8Problem(start_state=start, goal_state=GOAL_STATE, weighted_cost=options.get("weighted_cost", False))
+    return Puzzle8Problem(
+        start_state=start,
+        goal_state=GOAL_STATE,
+        weighted_cost=options.get("weighted_cost", False),
+        heuristic_name=options.get("heuristic", "manhattan"),
+    )
 
 
 def _pathfinding_factory(options: dict):
@@ -42,16 +47,22 @@ PROBLEMS = {
         key="puzzle8",
         label="8-Puzzle",
         description="Classic sliding tile state-space search problem.",
-        algorithms=("BFS", "DFS", "IDS", "UCS", "Greedy", "A*"),
+        algorithms=(
+            "BFS", "DFS", "IDS", "UCS", "Greedy", "A*", "IDA*",
+            "Simple HC", "Steepest HC", "Stochastic HC", "Sideways HC",
+            "Random Restart HC", "Local Beam Better", "Local Beam Best",
+            "Simulated Annealing", "Sensorless Search", "Partial Observation",
+            "AND-OR Graph", "Belief State Demo",
+        ),
         factory=_puzzle_factory,
         renderer=puzzle8_renderer,
-        default_options={"shuffle": False, "weighted_cost": False},
+        default_options={"shuffle": False, "weighted_cost": False, "heuristic": "manhattan"},
     ),
     "pathfinding": ProblemSpec(
         key="pathfinding",
         label="Grid Pathfinding",
         description="Find a route across a blocked grid, similar to map path planning.",
-        algorithms=("BFS", "DFS", "IDS", "UCS", "Greedy", "A*"),
+        algorithms=("BFS", "DFS", "IDS", "UCS", "Greedy", "A*", "IDA*", "Simple HC", "Steepest HC", "Stochastic HC"),
         factory=_pathfinding_factory,
         renderer=pathfinding_renderer,
         default_options={},
@@ -60,7 +71,7 @@ PROBLEMS = {
         key="queens8",
         label="8-Queens",
         description="Place 8 queens so no two attack each other.",
-        algorithms=("BFS", "DFS", "IDS", "UCS", "Greedy", "A*"),
+        algorithms=("BFS", "DFS", "IDS", "UCS", "Greedy", "A*", "IDA*", "Simple HC", "Steepest HC", "Stochastic HC"),
         factory=_queens_factory,
         renderer=queens8_renderer,
         default_options={"size": 8},
