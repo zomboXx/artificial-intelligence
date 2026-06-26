@@ -1,4 +1,4 @@
-# Học phần: Nhập môn Trí tuệ Nhân tạo (ARIN330585)
+# Học phần: Nhập môn Trí tuệ Nhân tạo (252ARIN330585_07)
 
 Repository học tập của tôi cho học phần **Trí Tuệ Nhân Tạo / Artificial Intelligence**.
 
@@ -6,7 +6,7 @@ Repository học tập của tôi cho học phần **Trí Tuệ Nhân Tạo / Ar
 
 - **Sinh viên thực hiện**: Nguyễn Đức Phát
 - **Mã số sinh viên**: 24110296
-- **Lớp học phần**: ARIN330585
+- **Lớp học phần**: 252ARIN330585_07
 - **Trường**: Đại học Công Nghệ Kỹ thuật Thành phố Hồ Chí Minh (HCM-UTE)
 - **Mục đích**: Lưu trữ bài tập về nhà, báo cáo notebook, source code mô phỏng và phiên bản web trực quan hóa các thuật toán AI đã học.
 

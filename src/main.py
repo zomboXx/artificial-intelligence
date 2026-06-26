@@ -122,7 +122,7 @@ with st.sidebar:
 <div style="font-size: 0.75rem; color: var(--neo-muted); font-weight: 600; line-height: 1.6;">
     Nguyen Duc Phat<br>
     MSSV: 24110296<br>
-    HCM-UTE - ARIN330585
+    HCM-UTE - 252ARIN330585_07
 </div>
 """)
 
