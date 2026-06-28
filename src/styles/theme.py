@@ -59,7 +59,6 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
 }
 
 [data-testid="stSidebar"] * {
-    font-family: 'Outfit', sans-serif !important;
     color: #111111 !important;
 }
 

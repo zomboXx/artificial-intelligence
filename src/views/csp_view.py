@@ -114,23 +114,108 @@ def _metrics(step):
         column.metric(label, value)
 
 
-def _render_map(csp, step):
-    st.subheader("Map assignment")
-    regions = []
-    conflicted = {var for pair in step.conflicts for var in pair}
+MAP_EDGES = (
+    ("WA", "NT"), ("WA", "SA"), ("NT", "SA"), ("NT", "Q"),
+    ("SA", "Q"), ("SA", "NSW"), ("SA", "V"), ("Q", "NSW"),
+    ("NSW", "V"),
+)
+
+
+def _render_svg_graph(csp, step, conflicted):
+    coords = {
+        "WA": (55, 180),
+        "NT": (175, 85),
+        "SA": (195, 220),
+        "Q": (325, 95),
+        "NSW": (335, 210),
+        "V": (295, 300),
+        "T": (295, 360)
+    }
+    
+    # Draw edges
+    edges_html = []
+    for left, right in MAP_EDGES:
+        x1, y1 = coords[left]
+        x2, y2 = coords[right]
+        is_conflicted = (left, right) in step.conflicts or (right, left) in step.conflicts
+        stroke_color = "#D7263D" if is_conflicted else "#111111"
+        stroke_width = "5" if is_conflicted else "3"
+        dasharray = "stroke-dasharray='5,5'" if is_conflicted else ""
+        edges_html.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{stroke_color}" stroke-width="{stroke_width}" {dasharray} />')
+        
+    # Draw nodes
+    nodes_html = []
     for var in csp.variables:
+        cx, cy = coords[var]
         value = step.assignment.get(var)
         background = COLOR_HEX.get(value, "#FFFFFF")
         border = "#D7263D" if var in conflicted else "#111111"
-        domain = ", ".join(map(str, step.domains[var]))
-        regions.append(f"""
-<div style="background:{background};border:3px solid {border};box-shadow:3px 3px 0 #111;padding:.7rem;min-height:78px;">
-  <div style="font-size:1.1rem;font-weight:900;">{var}</div>
+        
+        # Shadow circle
+        nodes_html.append(f'<circle cx="{cx + 3}" cy="{cy + 3}" r="18" fill="#111111" />')
+        
+        # Main circle
+        nodes_html.append(f'<circle cx="{cx}" cy="{cy}" r="18" fill="{background}" stroke="{border}" stroke-width="2.5" />')
+        
+        # Highlight if current variable
+        if var == step.current_var:
+            nodes_html.append(f'<circle cx="{cx}" cy="{cy}" r="24" fill="none" stroke="#FFE135" stroke-width="3" stroke-dasharray="4,4" />')
+            
+        # Label text
+        nodes_html.append(f'<text x="{cx}" y="{cy + 4}" text-anchor="middle" font-family="\'Outfit\', sans-serif" font-weight="900" font-size="11" fill="#111111">{var}</text>')
+        
+    svg_content = "\n".join(edges_html + nodes_html)
+    return f"""
+<div style="text-align: center;">
+    <svg viewBox="0 0 400 395" width="100%" height="395" style="background:#FFFFFF; border:2.5px solid #111111; box-shadow:4px 4px 0px #111111;">
+        {svg_content}
+    </svg>
+</div>
+"""
+
+
+def _render_map(csp, step):
+    st.subheader("Map assignment")
+    conflicted = {var for pair in step.conflicts for var in pair}
+    
+    col_graph, col_grid = st.columns([1.1, 1])
+    
+    with col_graph:
+        st.markdown("**Adjacency Graph**")
+        st.html(_render_svg_graph(csp, step, conflicted))
+        
+    with col_grid:
+        st.markdown("**Geographical Grid**")
+        grid_positions = {
+            "NT": (0, 1), "Q": (0, 2),
+            "WA": (1, 0), "SA": (1, 1), "NSW": (1, 2),
+            "V": (2, 1),
+            "T": (3, 1)
+        }
+        grid = [[None for _ in range(3)] for _ in range(4)]
+        for var, (r, c) in grid_positions.items():
+            grid[r][c] = var
+            
+        regions_html = []
+        for r in range(4):
+            for c in range(3):
+                var = grid[r][c]
+                if var is None:
+                    regions_html.append("<div></div>")
+                else:
+                    value = step.assignment.get(var)
+                    background = COLOR_HEX.get(value, "#FFFFFF")
+                    border = "#D7263D" if var in conflicted else "#111111"
+                    domain = ", ".join(map(str, step.domains[var]))
+                    regions_html.append(f"""
+<div style="background:{background};border:2.5px solid {border};box-shadow:3px 3px 0 #111;padding:.5rem;min-height:75px;">
+  <div style="font-size:1rem;font-weight:900;line-height:1.2;">{var}</div>
   <div style="font-size:.8rem;font-weight:700;">{html.escape(str(value)) if value is not None else 'Unassigned'}</div>
-  <div style="font-size:.7rem;color:#444;">D={html.escape(domain)}</div>
+  <div style="font-size:.65rem;color:#444;">D={html.escape(domain)}</div>
 </div>""")
-    st.html(f"<div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;'>{''.join(regions)}</div>")
-    st.caption("Adjacency constraints: " + ", ".join(f"{left}-{right}" for left, right in (("WA", "NT"), ("WA", "SA"), ("NT", "SA"), ("NT", "Q"), ("SA", "Q"), ("SA", "NSW"), ("SA", "V"), ("Q", "NSW"), ("NSW", "V"))))
+        st.html(f"<div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;'>{''.join(regions_html)}</div>")
+        
+    st.caption("Adjacency constraints: " + ", ".join(f"{left}-{right}" for left, right in MAP_EDGES))
 
 
 def _render_puzzle(csp, step):

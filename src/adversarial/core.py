@@ -14,6 +14,8 @@ WIN_LINES = (
     (0, 4, 8), (2, 4, 6),
 )
 
+MOVE_PRIORITY = {4: 0, 0: 1, 2: 1, 6: 1, 8: 1, 1: 2, 3: 2, 5: 2, 7: 2}
+
 
 def empty_board():
     return tuple(EMPTY for _ in range(9))
@@ -79,7 +81,7 @@ def _root_minimax(board):
         return result
 
     candidates = [(move, value(board_after(board, move, MAX_PLAYER), MIN_PLAYER, 1)) for move in legal_moves(board)]
-    candidates.sort(key=lambda item: (-item[1], item[0]))
+    candidates.sort(key=lambda item: (-item[1], MOVE_PRIORITY[item[0]]))
     move, score = candidates[0] if candidates else (None, utility(board))
     return {"move": move, "value": score, "candidates": candidates, **stats}
 
@@ -115,7 +117,7 @@ def _root_alpha_beta(board):
         score = value(board_after(board, move, MAX_PLAYER), MIN_PLAYER, 1, alpha, math.inf)
         candidates.append((move, score))
         alpha = max(alpha, score)
-    candidates.sort(key=lambda item: (-item[1], item[0]))
+    candidates.sort(key=lambda item: (-item[1], MOVE_PRIORITY[item[0]]))
     move, score = candidates[0] if candidates else (None, utility(board))
     return {"move": move, "value": score, "candidates": candidates, **stats}
 
@@ -138,7 +140,7 @@ def _root_expectimax(board):
         return result
 
     candidates = [(move, value(board_after(board, move, MAX_PLAYER), MIN_PLAYER, 1)) for move in legal_moves(board)]
-    candidates.sort(key=lambda item: (-item[1], item[0]))
+    candidates.sort(key=lambda item: (-item[1], MOVE_PRIORITY[item[0]]))
     move, score = candidates[0] if candidates else (None, utility(board))
     return {"move": move, "value": score, "candidates": candidates, **stats}
 
