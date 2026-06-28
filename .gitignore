@@ -49,3 +49,6 @@ MANIFEST
 # OS files
 .DS_Store
 Thumbs.db
+
+# Playwright test artifacts
+.playwright-cli/
