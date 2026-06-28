@@ -30,6 +30,21 @@ def render(_base_dir=None):
     _ensure_state()
     _header()
 
+    col_mode, col_sym = st.columns(2)
+    with col_mode:
+        game_mode = st.selectbox(
+            "Game Mode",
+            ("Debug Recursion", "Play vs AI"),
+            key=f"{PREFIX}_game_mode"
+        )
+    with col_sym:
+        human_player = st.selectbox(
+            "Your Symbol (Human)",
+            ("O", "X"),
+            key=f"{PREFIX}_human_player",
+            disabled=(game_mode != "Play vs AI")
+        )
+
     col1, col2, col3 = st.columns([1.2, 1, 1])
     with col1:
         algorithm = st.selectbox("Algorithm", ALGORITHMS, key=f"{PREFIX}_algorithm")
@@ -41,27 +56,82 @@ def render(_base_dir=None):
     _controls(algorithm, opponent_mode, debug_depth)
     board = st.session_state[f"{PREFIX}_board"]
     turn = st.session_state[f"{PREFIX}_turn"]
+
+    if game_mode == "Play vs AI" and winner(board) is None and turn != human_player:
+        with st.spinner("AI đang tính toán nước đi..."):
+            _run_ai_turn(board, turn, algorithm, opponent_mode)
+            board = st.session_state[f"{PREFIX}_board"]
+            turn = st.session_state[f"{PREFIX}_turn"]
+
     preview = evaluate(board, algorithm) if winner(board) is None else {"move": None, "value": 0, "candidates": [], "nodes": 0, "pruned": 0}
     event = _current_event()
 
-    metrics = st.columns(6)
-    values = (
-        ("Turn", turn),
-        ("Winner", winner(board) or "-"),
-        ("Best move", move_label(preview["move"]) if preview["move"] is not None else "-"),
-        ("Value", f"{preview['value']:.3f}"),
-        ("Nodes", preview["nodes"]),
-        ("Pruned", preview["pruned"]),
-    )
-    for column, (label, value) in zip(metrics, values):
-        column.metric(label, value)
+    if game_mode == "Play vs AI":
+        ai_stats = st.session_state.get(f"{PREFIX}_ai_stats")
+        last_nodes = ai_stats["nodes"] if ai_stats else 0
+        last_pruned = ai_stats["pruned"] if ai_stats else 0
+        last_time = f"{ai_stats['elapsed_ms']:.1f}ms" if ai_stats else "-"
+        
+        # Calculate hint
+        from adversarial.core import MOVE_PRIORITY
+        hint_move = None
+        if winner(board) is None:
+            if turn == MAX_PLAYER:
+                hint_move = preview["move"]
+            else:
+                moves = legal_moves(board)
+                if moves:
+                    scored = []
+                    for m in moves:
+                        next_state = board_after(board, m, MIN_PLAYER)
+                        res = evaluate(next_state, algorithm)
+                        scored.append((m, res["value"]))
+                    scored.sort(key=lambda item: (item[1], MOVE_PRIORITY[item[0]]))
+                    hint_move = scored[0][0]
+
+        metrics = st.columns(6)
+        values = (
+            ("Lượt đi (Turn)", turn),
+            ("Kết quả (Winner)", winner(board) or "Đang chơi"),
+            ("Gợi ý (Hint)", move_label(hint_move) if hint_move is not None else "-"),
+            ("AI Nodes", last_nodes),
+            ("AI Pruned", last_pruned),
+            ("AI Time", last_time),
+        )
+        for column, (label, value) in zip(metrics, values):
+            column.metric(label, value)
+    else:
+        metrics = st.columns(6)
+        values = (
+            ("Turn", turn),
+            ("Winner", winner(board) or "-"),
+            ("Best move", move_label(preview["move"]) if preview["move"] is not None else "-"),
+            ("Value", f"{preview['value']:.3f}"),
+            ("Nodes", preview["nodes"]),
+            ("Pruned", preview["pruned"]),
+        )
+        for column, (label, value) in zip(metrics, values):
+            column.metric(label, value)
 
     left, right = st.columns([1, 1.35])
     with left:
         _board_controls(board, turn)
-        _root_candidates(preview)
+        if game_mode == "Play vs AI":
+            game_winner = winner(board)
+            if game_winner is not None:
+                if game_winner == "Draw":
+                    st.info("Trận đấu kết thúc với kết quả Hòa! 🤝")
+                elif game_winner == human_player:
+                    st.success("Chúc mừng! Bạn đã thắng AI! 🎉")
+                else:
+                    st.error("AI đã giành chiến thắng! 🤖")
+        else:
+            _root_candidates(preview)
     with right:
-        _debug_event(event)
+        if game_mode == "Play vs AI":
+            _render_ai_decision_panel()
+        else:
+            _debug_event(event)
 
 
 def _ensure_state():
@@ -70,6 +140,10 @@ def _ensure_state():
     st.session_state.setdefault(f"{PREFIX}_events", [])
     st.session_state.setdefault(f"{PREFIX}_index", 0)
     st.session_state.setdefault(f"{PREFIX}_history", [])
+    st.session_state.setdefault(f"{PREFIX}_game_mode", "Debug Recursion")
+    st.session_state.setdefault(f"{PREFIX}_human_player", "O")
+    st.session_state.setdefault(f"{PREFIX}_ai_stats", None)
+    st.session_state.setdefault(f"{PREFIX}_last_move", None)
 
 
 def _header():
@@ -82,50 +156,83 @@ def _header():
 
 
 def _controls(algorithm, opponent_mode, debug_depth):
-    columns = st.columns(6)
-    with columns[0]:
-        if st.button("Reset Game", use_container_width=True, key=f"{PREFIX}_reset"):
-            st.session_state[f"{PREFIX}_board"] = empty_board()
-            st.session_state[f"{PREFIX}_turn"] = MAX_PLAYER
-            st.session_state[f"{PREFIX}_events"] = []
-            st.session_state[f"{PREFIX}_index"] = 0
-            st.session_state[f"{PREFIX}_history"] = []
-            st.rerun()
-    with columns[1]:
-        if st.button("Debug Reset", use_container_width=True, key=f"{PREFIX}_debug_reset"):
-            board = st.session_state[f"{PREFIX}_board"]
-            turn = st.session_state[f"{PREFIX}_turn"]
-            st.session_state[f"{PREFIX}_events"] = build_debug_events(board, algorithm, turn, debug_depth)
-            st.session_state[f"{PREFIX}_index"] = 0
-            st.rerun()
-    with columns[2]:
-        if st.button("Debug Step", use_container_width=True, key=f"{PREFIX}_debug_step"):
-            events = st.session_state[f"{PREFIX}_events"]
-            if not events:
-                board = st.session_state[f"{PREFIX}_board"]
-                turn = st.session_state[f"{PREFIX}_turn"]
-                events = build_debug_events(board, algorithm, turn, debug_depth)
-                st.session_state[f"{PREFIX}_events"] = events
-            st.session_state[f"{PREFIX}_index"] = min(st.session_state[f"{PREFIX}_index"] + 1, max(0, len(events) - 1))
-            st.rerun()
-    with columns[3]:
-        if st.button("AI Move", use_container_width=True, key=f"{PREFIX}_ai"):
-            _ai_move(algorithm)
-            st.rerun()
-    with columns[4]:
-        if st.button("O Move", use_container_width=True, key=f"{PREFIX}_opponent_move"):
-            _opponent_move(algorithm, opponent_mode)
-            st.rerun()
-    with columns[5]:
-        if st.button("Undo", use_container_width=True, key=f"{PREFIX}_undo"):
-            history = st.session_state[f"{PREFIX}_history"]
-            if history:
-                board, turn = history.pop()
-                st.session_state[f"{PREFIX}_board"] = board
-                st.session_state[f"{PREFIX}_turn"] = turn
+    game_mode = st.session_state.get(f"{PREFIX}_game_mode", "Debug Recursion")
+    
+    if game_mode == "Play vs AI":
+        columns = st.columns(2)
+        with columns[0]:
+            if st.button("Reset Game", use_container_width=True, key=f"{PREFIX}_reset"):
+                st.session_state[f"{PREFIX}_board"] = empty_board()
+                st.session_state[f"{PREFIX}_turn"] = MAX_PLAYER
                 st.session_state[f"{PREFIX}_events"] = []
                 st.session_state[f"{PREFIX}_index"] = 0
+                st.session_state[f"{PREFIX}_history"] = []
+                st.session_state[f"{PREFIX}_ai_stats"] = None
+                st.session_state[f"{PREFIX}_last_move"] = None
                 st.rerun()
+        with columns[1]:
+            if st.button("Undo Move", use_container_width=True, key=f"{PREFIX}_undo"):
+                history = st.session_state[f"{PREFIX}_history"]
+                if history:
+                    board, turn = history.pop()
+                    human_player = st.session_state.get(f"{PREFIX}_human_player", "O")
+                    if history and turn != human_player:
+                        board, turn = history.pop()
+                    st.session_state[f"{PREFIX}_board"] = board
+                    st.session_state[f"{PREFIX}_turn"] = turn
+                    st.session_state[f"{PREFIX}_events"] = []
+                    st.session_state[f"{PREFIX}_index"] = 0
+                    st.session_state[f"{PREFIX}_ai_stats"] = None
+                    st.session_state[f"{PREFIX}_last_move"] = None
+                    st.rerun()
+    else:
+        columns = st.columns(6)
+        with columns[0]:
+            if st.button("Reset Game", use_container_width=True, key=f"{PREFIX}_reset"):
+                st.session_state[f"{PREFIX}_board"] = empty_board()
+                st.session_state[f"{PREFIX}_turn"] = MAX_PLAYER
+                st.session_state[f"{PREFIX}_events"] = []
+                st.session_state[f"{PREFIX}_index"] = 0
+                st.session_state[f"{PREFIX}_history"] = []
+                st.session_state[f"{PREFIX}_ai_stats"] = None
+                st.session_state[f"{PREFIX}_last_move"] = None
+                st.rerun()
+        with columns[1]:
+            if st.button("Debug Reset", use_container_width=True, key=f"{PREFIX}_debug_reset"):
+                board = st.session_state[f"{PREFIX}_board"]
+                turn = st.session_state[f"{PREFIX}_turn"]
+                st.session_state[f"{PREFIX}_events"] = build_debug_events(board, algorithm, turn, debug_depth)
+                st.session_state[f"{PREFIX}_index"] = 0
+                st.rerun()
+        with columns[2]:
+            if st.button("Debug Step", use_container_width=True, key=f"{PREFIX}_debug_step"):
+                events = st.session_state[f"{PREFIX}_events"]
+                if not events:
+                    board = st.session_state[f"{PREFIX}_board"]
+                    turn = st.session_state[f"{PREFIX}_turn"]
+                    events = build_debug_events(board, algorithm, turn, debug_depth)
+                    st.session_state[f"{PREFIX}_events"] = events
+                st.session_state[f"{PREFIX}_index"] = min(st.session_state[f"{PREFIX}_index"] + 1, max(0, len(events) - 1))
+                st.rerun()
+        with columns[3]:
+            if st.button("AI Move", use_container_width=True, key=f"{PREFIX}_ai"):
+                _ai_move(algorithm)
+                st.rerun()
+        with columns[4]:
+            if st.button("O Move", use_container_width=True, key=f"{PREFIX}_opponent_move"):
+                _opponent_move(algorithm, opponent_mode)
+                st.rerun()
+        with columns[5]:
+            if st.button("Undo", use_container_width=True, key=f"{PREFIX}_undo"):
+                history = st.session_state[f"{PREFIX}_history"]
+                if history:
+                    board, turn = history.pop()
+                    st.session_state[f"{PREFIX}_board"] = board
+                    st.session_state[f"{PREFIX}_turn"] = turn
+                    st.session_state[f"{PREFIX}_events"] = []
+                    st.session_state[f"{PREFIX}_index"] = 0
+                    st.session_state[f"{PREFIX}_last_move"] = None
+                    st.rerun()
 
 
 def _push_history():
@@ -166,25 +273,48 @@ def _opponent_move(algorithm, opponent_mode):
 
 
 def _board_controls(board, turn):
-    st.subheader("Tic-Tac-Toe board")
-    st.markdown("X is MAX; O is MIN/chance. Click an empty cell only on O's turn.")
+    st.subheader("Bàn cờ Tic-Tac-Toe")
+    
+    game_mode = st.session_state.get(f"{PREFIX}_game_mode", "Debug Recursion")
+    human_player = st.session_state.get(f"{PREFIX}_human_player", "O")
+    
+    if game_mode == "Play vs AI":
+        st.markdown(f"Bạn đang cầm quân: **{human_player}**. Click vào ô trống khi đến lượt.")
+        disabled_cond = lambda idx: (board[idx] != EMPTY or turn != human_player or winner(board) is not None)
+    else:
+        st.markdown("X là MAX; O là MIN/chance. Bấm vào ô trống khi đến lượt của O.")
+        disabled_cond = lambda idx: (board[idx] != EMPTY or turn != MIN_PLAYER or winner(board) is not None)
+
     st.markdown("""
 <style>
 div[data-testid="stHorizontalBlock"] .stButton button[kind="secondary"] {min-height:72px;font-size:1.45rem;}
 </style>
 """, unsafe_allow_html=True)
+    
+    last_move = st.session_state.get(f"{PREFIX}_last_move")
     for row in range(3):
         columns = st.columns(3)
         for col in range(3):
             index = row * 3 + col
             label = board[index] if board[index] != EMPTY else "·"
+            
+            if last_move == index:
+                st.markdown(f"""<style>
+                    button[key="{PREFIX}_cell_{index}"] {{
+                        background-color: {COLORS['accent_2']} !important;
+                        border: 2.5px solid #111111 !important;
+                    }}
+                </style>""", unsafe_allow_html=True)
+                
             with columns[col]:
-                if st.button(label, key=f"{PREFIX}_cell_{index}", use_container_width=True, disabled=board[index] != EMPTY or turn != MIN_PLAYER or winner(board) is not None):
+                if st.button(label, key=f"{PREFIX}_cell_{index}", use_container_width=True, disabled=disabled_cond(index)):
                     _push_history()
-                    st.session_state[f"{PREFIX}_board"] = board_after(board, index, MIN_PLAYER)
-                    st.session_state[f"{PREFIX}_turn"] = MAX_PLAYER
+                    player_to_move = human_player if game_mode == "Play vs AI" else MIN_PLAYER
+                    st.session_state[f"{PREFIX}_board"] = board_after(board, index, player_to_move)
+                    st.session_state[f"{PREFIX}_turn"] = opponent(player_to_move)
                     st.session_state[f"{PREFIX}_events"] = []
                     st.session_state[f"{PREFIX}_index"] = 0
+                    st.session_state[f"{PREFIX}_last_move"] = index
                     st.rerun()
 
 
@@ -205,6 +335,92 @@ def _current_event():
     if not events:
         return None
     return events[st.session_state[f"{PREFIX}_index"]]
+
+
+def _run_ai_turn(board, turn, algorithm, opponent_mode):
+    import time
+    from adversarial.core import MOVE_PRIORITY
+    start_time = time.perf_counter()
+    
+    if turn == MAX_PLAYER:
+        res = evaluate(board, algorithm)
+        move = res["move"]
+        nodes = res["nodes"]
+        pruned = res["pruned"]
+        candidates = res["candidates"]
+    else:
+        # AI is MIN (O)
+        moves = legal_moves(board)
+        if not moves:
+            return
+        nodes = 0
+        pruned = 0
+        candidates = []
+        for m in moves:
+            next_state = board_after(board, m, MIN_PLAYER)
+            res = evaluate(next_state, algorithm)
+            nodes += res["nodes"] + 1
+            pruned += res["pruned"]
+            candidates.append((m, res["value"]))
+            
+        if opponent_mode == "Random":
+            import random
+            move = random.choice(moves)
+        else:
+            candidates.sort(key=lambda item: (item[1], MOVE_PRIORITY[item[0]]))
+            move = candidates[0][0]
+            
+    elapsed = (time.perf_counter() - start_time) * 1000.0
+    
+    st.session_state[f"{PREFIX}_ai_stats"] = {
+        "move": move,
+        "nodes": nodes,
+        "pruned": pruned,
+        "elapsed_ms": elapsed,
+        "candidates": candidates,
+        "algorithm": algorithm
+    }
+    
+    _push_history()
+    st.session_state[f"{PREFIX}_board"] = board_after(board, move, turn)
+    st.session_state[f"{PREFIX}_turn"] = opponent(turn)
+    st.session_state[f"{PREFIX}_last_move"] = move
+
+
+def _render_ai_decision_panel():
+    st.subheader("Bảng tính toán quyết định của AI")
+    ai_stats = st.session_state.get(f"{PREFIX}_ai_stats")
+    if ai_stats is None:
+        st.info("Chưa có lượt tính toán nào từ AI. Hãy đi một nước để kích hoạt AI!")
+        return
+        
+    st.html(f"""
+<div style="border:2.5px solid #111;box-shadow:4px 4px 0 #111;background:{COLORS['accent_4']};padding:1rem;margin-bottom:1rem;">
+  <div style="font-weight:900;font-size:1.1rem;">AI Decision (Thuật toán: {ai_stats['algorithm']})</div>
+  <div style="margin-top:.45rem;">
+    Quyết định đi nước: <b>{move_label(ai_stats['move'])}</b>
+  </div>
+  <hr style="border:0;border-top:2px solid #111;margin:8px 0;">
+  <div><b>Tổng số nút duyệt:</b> {ai_stats['nodes']}</div>
+  <div><b>Số nhánh bị tỉa:</b> {ai_stats['pruned']}</div>
+  <div><b>Thời gian chạy:</b> {ai_stats['elapsed_ms']:.2f} ms</div>
+</div>
+""")
+    
+    st.markdown("**Bảng điểm các nước đi ứng viên:**")
+    candidates = ai_stats.get("candidates", [])
+    if not candidates:
+        st.caption("Không có nước đi khả dụng.")
+    else:
+        rows = [
+            {
+                "Nước đi": move_label(move),
+                "Điểm đánh giá": round(score, 3),
+                "Quyết định": "Chọn ⭐" if move == ai_stats["move"] else ""
+            }
+            for move, score in candidates
+        ]
+        st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
 import math

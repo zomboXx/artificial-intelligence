@@ -140,6 +140,172 @@ def _render_problem_options(spec):
             step=1,
             key=f"{SESSION_PREFIX}_queens_size",
         )
+    elif spec.key == "pathfinding":
+        heuristic_label = st.selectbox(
+            "Heuristic",
+            options=["manhattan", "euclidean", "chebyshev", "dijkstra"],
+            format_func=lambda val: {
+                "manhattan": "Manhattan Distance",
+                "euclidean": "Euclidean Distance",
+                "chebyshev": "Chebyshev Distance",
+                "dijkstra": "Dijkstra (h = 0)"
+            }[val],
+            index=0,
+            key=f"{SESSION_PREFIX}_pathfinding_heuristic"
+        )
+        options["heuristic"] = heuristic_label
+
+        PRESETS = {
+            "Default": [
+                "S..#.......",
+                ".#.#.#####.",
+                ".#...#.....",
+                ".###.#.###.",
+                "...#...#...",
+                "##.#####.#.",
+                "...#.....#.",
+                ".#.#.###.#.",
+                ".#.....#..G",
+                "....##.....",
+            ],
+            "Empty Grid": [
+                "S..........",
+                "...........",
+                "...........",
+                "...........",
+                "...........",
+                "...........",
+                "...........",
+                "...........",
+                "...........",
+                "..........G",
+            ],
+            "Classic Maze": [
+                "S#.........",
+                ".#.#######.",
+                ".#.#.....#.",
+                ".#.#.###.#.",
+                "...#.#.#.#.",
+                "####.#.#.#.",
+                ".....#.#.#.",
+                ".#####.#.#.",
+                ".......#..G",
+                "##########.",
+            ],
+            "Bottleneck": [
+                "S..........",
+                "...........",
+                "...........",
+                "####.######",
+                "....#......",
+                "....#......",
+                "####.######",
+                "...........",
+                "...........",
+                "..........G",
+            ],
+            "Spiral": [
+                "S#########.",
+                "..........#",
+                ".########.#",
+                "#........##",
+                "#.######.##",
+                "#.####G#.##",
+                "#.#....#.##",
+                "#.######.##",
+                "#........##",
+                "###########",
+            ],
+            "Vertical Wall": [
+                "S....#.....",
+                ".....#.....",
+                ".....#.....",
+                ".....#.....",
+                ".....#.....",
+                ".....#.....",
+                ".....#.....",
+                ".....#.....",
+                ".....#....G",
+                ".....#.....",
+            ],
+            "Horizontal Obstacles": [
+                "S..........",
+                "##########.",
+                "...........",
+                ".##########",
+                "...........",
+                "##########.",
+                "...........",
+                ".##########",
+                "...........",
+                "..........G",
+            ]
+        }
+
+        if f"{SESSION_PREFIX}_custom_grid" not in st.session_state:
+            st.session_state[f"{SESSION_PREFIX}_custom_grid"] = [list(row) for row in PRESETS["Default"]]
+
+        preset_choice = st.selectbox(
+            "Preset Grid Map",
+            options=list(PRESETS.keys()),
+            key=f"{SESSION_PREFIX}_grid_preset_select"
+        )
+        current_preset_key = f"{SESSION_PREFIX}_current_loaded_preset"
+        if st.session_state.get(current_preset_key) != preset_choice:
+            st.session_state[f"{SESSION_PREFIX}_custom_grid"] = [list(row) for row in PRESETS[preset_choice]]
+            st.session_state[current_preset_key] = preset_choice
+
+        with st.expander("🛠️ Custom Grid Layout Editor", expanded=False):
+            grid_text = "\n".join("".join(row) for row in st.session_state[f"{SESSION_PREFIX}_custom_grid"])
+            new_grid_text = st.text_area(
+                "Map Text (S=Start, G=Goal, #=Wall, .=Empty)",
+                value=grid_text,
+                height=220,
+                key=f"{SESSION_PREFIX}_text_grid_editor"
+            )
+            lines = [line.strip() for line in new_grid_text.strip().split("\n") if line.strip()]
+            valid = True
+            if len(lines) != 10:
+                valid = False
+                st.warning("Map must have exactly 10 rows.")
+            elif any(len(line) != 11 for line in lines):
+                valid = False
+                st.warning("Each row must have exactly 11 characters.")
+            else:
+                flat = "".join(lines)
+                if flat.count("S") != 1:
+                    valid = False
+                    st.warning("Map must have exactly one Start point (S).")
+                if flat.count("G") != 1:
+                    valid = False
+                    st.warning("Map must have exactly one Goal point (G).")
+
+            if valid:
+                st.session_state[f"{SESSION_PREFIX}_custom_grid"] = [list(line) for line in lines]
+
+            st.markdown("---")
+            st.markdown("**Paint Tool (Edit cell by coordinate)**")
+            col_r, col_c, col_t = st.columns([1, 1, 1.2])
+            with col_r:
+                paint_r = st.selectbox("Row", list(range(10)), key=f"{SESSION_PREFIX}_paint_r")
+            with col_c:
+                paint_c = st.selectbox("Col", list(range(11)), key=f"{SESSION_PREFIX}_paint_c")
+            with col_t:
+                paint_type = st.selectbox("Cell Type", ["Wall (#)", "Empty (.)", "Start (S)", "Goal (G)"], key=f"{SESSION_PREFIX}_paint_type")
+
+            if st.button("Apply Cell Edit", key=f"{SESSION_PREFIX}_paint_apply", use_container_width=True):
+                char_map = {"Wall (#)": "#", "Empty (.)": ".", "Start (S)": "S", "Goal (G)": "G"}
+                char = char_map[paint_type]
+                if char in ("S", "G"):
+                    for r in range(10):
+                        for c in range(11):
+                            if st.session_state[f"{SESSION_PREFIX}_custom_grid"][r][c] == char:
+                                st.session_state[f"{SESSION_PREFIX}_custom_grid"][r][c] = "."
+                st.session_state[f"{SESSION_PREFIX}_custom_grid"][paint_r][paint_c] = char
+                st.rerun()
+
+        grid_tuple = tuple("".join(row) for row in st.session_state[f"{SESSION_PREFIX}_custom_grid"])
+        options["grid"] = grid_tuple
 
     return options
 

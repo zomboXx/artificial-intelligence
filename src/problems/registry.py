@@ -35,7 +35,10 @@ def _puzzle_factory(options: dict):
 
 
 def _pathfinding_factory(options: dict):
-    return GridPathfindingProblem()
+    from problems.pathfinding.problem import DEFAULT_GRID
+    grid = options.get("grid", DEFAULT_GRID)
+    heuristic = options.get("heuristic", "manhattan")
+    return GridPathfindingProblem(grid=grid, heuristic_name=heuristic)
 
 
 def _queens_factory(options: dict):
@@ -65,7 +68,7 @@ PROBLEMS = {
         algorithms=("BFS", "DFS", "IDS", "UCS", "Greedy", "A*", "IDA*", "Simple HC", "Steepest HC", "Stochastic HC"),
         factory=_pathfinding_factory,
         renderer=pathfinding_renderer,
-        default_options={},
+        default_options={"grid": None, "heuristic": "manhattan"},
     ),
     "queens8": ProblemSpec(
         key="queens8",

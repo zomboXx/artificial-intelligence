@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 
+import math
+
 DEFAULT_GRID = (
     "S..#.......",
     ".#.#.#####.",
@@ -20,12 +22,13 @@ DEFAULT_GRID = (
 class GridPathfindingProblem:
     name = "Grid Pathfinding"
 
-    def __init__(self, grid: tuple[str, ...] = DEFAULT_GRID):
+    def __init__(self, grid: tuple[str, ...] = DEFAULT_GRID, heuristic_name: str = "manhattan"):
         self.grid = grid
         self.rows = len(grid)
         self.cols = len(grid[0])
         self.start = self._find("S")
         self.goal = self._find("G")
+        self.heuristic_name = heuristic_name
 
     def initial_state(self):
         return self.start
@@ -61,7 +64,16 @@ class GridPathfindingProblem:
         return 1
 
     def heuristic(self, state) -> float:
-        return abs(state[0] - self.goal[0]) + abs(state[1] - self.goal[1])
+        r, c = state
+        gr, gc = self.goal
+        if self.heuristic_name == "euclidean":
+            return math.sqrt((r - gr) ** 2 + (c - gc) ** 2)
+        elif self.heuristic_name == "chebyshev":
+            return max(abs(r - gr), abs(c - gc))
+        elif self.heuristic_name == "dijkstra":
+            return 0.0
+        else:  # default is manhattan
+            return abs(r - gr) + abs(c - gc)
 
     def state_key(self, state):
         return state
